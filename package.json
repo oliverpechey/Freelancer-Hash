@@ -2,6 +2,7 @@
   "name": "freelancer-hash",
   "version": "1.0.0",
   "description": "A javascript reimplementation of the hashing algorithm discovered by Sherlog in 2003.",
+  "type": "module",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -21,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/oliverpechey/Freelancer-Hash/issues"
   },
-  "homepage": "https://github.com/oliverpechey/Freelancer-Hash#readme"
+  "homepage": "https://github.com/oliverpechey/Freelancer-Hash#readme",
+  "dependencies": {
+    "@nodecraft/ini": "^2.2.1"
+  }
 }
