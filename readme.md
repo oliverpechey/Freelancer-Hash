@@ -6,7 +6,7 @@ A reimplementation of Microsoft Freelancer's hashing algorithm.
 
 ## Usage
     import hash from 'freelancer-hash';
-    let flHash = new hash.FreelancerHash(installDirectory);
+    let flHash = new hash.FreelancerHash('C:\\Freelancer HD Edition\\DATA');
     let someNickname = flHash.getNickname(3074863431); // li_elite
 
 ## Note
