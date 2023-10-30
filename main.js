@@ -4,14 +4,19 @@ import fs from 'fs';
 import path from 'path';
 
 class FreelancerHash {
+    /**
+     * The constructor populates the required lookup tables when the class is instantiated.
+     * @constructor
+     * @param {string} directory The Freelancer DATA directory .
+     */
     constructor(directory) {
         this.lookupTable = new Array(256);
         this.factionLookupTable = new Array(256);
-        this.directory = directory;
-        this.hashMap = new Map();
+        directory ? this.directory = directory : this.directory = process.cwd();
+        this.hashMap = new Map(); // This is our main data structure that will hold all the nicknames and hashes.
         
         for (let i = 0; i < 256; i++) {
-            // Populate the ID Lookup tables
+            // Populate the ID Lookup tables.
             let idLookup = i;
             let factionIdLookup = i << 8 >>> 0;
             for (let j = 0; j < 8; j++) {
@@ -22,27 +27,49 @@ class FreelancerHash {
             this.lookupTable[i] = idLookup;
             this.factionLookupTable[i] = factionIdLookup;
         }
+
+        this.createHashList();
     }
 
+    /**
+     * Convert the hash to a nickname.
+     * @param {number} hash
+     * @returns {string} The nickname associated with that hash.
+     */
     getNickname = (hash) => {
-        // Map.get does strict equality so convert to number
+        // Map.get does strict equality so convert to number.
         if(typeof hash !== 'number') {
             hash = Number(hash);
         }
+        // Just in case our type conversion failed.
         if(isNaN(hash))
             return null;
 
+        // Find nickname in our hashmap.
         return this.hashMap.get(hash);
     }
 
+    /**
+     * Converts the nickname to a hash. Note: This re-hashes rather than looks up via the existing hashmap.
+     * @param {string} nickname 
+     * @returns {number} The hash associated with the nickname.
+     */
     getHash = (nickname) => {
         return this.createID(nickname);
     }
 
+    /**
+     * Converts the faction nickname to a hash. Note: This re-hashes rather than looks up via the existing hashmap.
+     * @param {string} nickname 
+     * @returns 
+     */
     getFactionHash = (nickname) => {
         return this.createFactionID(nickname);
     }
     
+    /**
+     * Reads the ini files, pulls out the nicknames and adds a hash of them to the hash map.
+     */
     createHashList = () => {
         // Grab all the ini files
         let iniFiles = this.getIniFiles();
@@ -52,8 +79,8 @@ class FreelancerHash {
         // Loop over ini files, parse them and extract nicknames
         for(let file of iniFiles) {
             let parsedIni = ini.parse(fs.readFileSync(file, 'utf8'), { inlineArrays: true });
-            // Faction names use a different algorithm
-            if(factionNicknames.length && file.toLowerCase() === (this.directory + '\\missions\\faction_prop.ini').toLowerCase()) {
+            // Faction names use "affiliation" rather than "nickname" so need to parse differently.
+            if(!factionNicknames.length && file.split('\\').pop().toLowerCase() === 'faction_prop.ini') {
                 factionNicknames.push(...this.extractNicknames(parsedIni, 'affiliation'));
             }
             else {
@@ -68,12 +95,17 @@ class FreelancerHash {
         for(let nickname of nicknames) {
             this.hashMap.set(this.createID(nickname), nickname);
         }
+        // Faction hashes use a different algorithm
         for(let nickname of factionNicknames) {
             this.hashMap.set(this.createFactionID(nickname), nickname);
         }
     }
 
-    // Recursive function that starts in a directory and pulls out all ini files including sub-directories
+    /**
+     * Recursive function that starts in a directory and pulls out all ini files including sub-directories
+     * @param {string} directory 
+     * @returns {string[]} An array of file paths for all the ini files
+     */
     getIniFiles = (directory = this.directory) => {
         let iniFiles = [];
         fs.readdirSync(directory).forEach(file => {
@@ -87,17 +119,22 @@ class FreelancerHash {
         return iniFiles;
     }
 
-    // Returns an array of nicknames taken from the parsed ini file
-    extractNicknames = (array, searchParam = 'nickname') => {
+    /**
+     * Returns an array of nicknames taken from the parsed ini file.
+     * @param {object} parsedIni 
+     * @param {string} searchParam 
+     * @returns {string[]}
+     */
+    extractNicknames = (parsedIni, searchParam = 'nickname') => {
         let nicknames = [];
-        for(let element in array) {
+        for(let element in parsedIni) {
             if(element === searchParam) {
-                nicknames.push(...array[element]);
+                nicknames.push(...parsedIni[element]);
             }
             else {
-                for(let subElement in array[element]) {
+                for(let subElement in parsedIni[element]) {
                     if(subElement === searchParam) {
-                        nicknames.push(...array[element][subElement]);
+                        nicknames.push(...parsedIni[element][subElement]);
                     }
                 }
             }
@@ -105,13 +142,20 @@ class FreelancerHash {
         return nicknames;
     }
 
-    // Creates an ID hash from a specified nickname
-    // Credit goes to Sherlog for discovering the initial Freelancer hash algorithm. I have merely converted it to JS.
-    createID = (input) => {
-        const utf8Array = new TextEncoder().encode(input.toLowerCase());
+    /**
+     * Creates an ID hash from a specified nickname.
+     * Credit goes to Sherlog for discovering the initial Freelancer hash algorithm. I have merely converted it to JS.
+     * @param {string} nickname 
+     * @returns {number}
+     */
+    createID = (nickname) => {
+        if(!nickname)
+            return null;
+        
+        const utf8Array = new TextEncoder().encode(nickname.toLowerCase());
         let hash = 0;
 
-        for (let i = 0; i < input.length; i++) {
+        for (let i = 0; i < nickname.length; i++) {
             hash = (hash >> 8) ^ this.lookupTable[(hash & 0x000000FF) ^ utf8Array[i]];
         }
     
@@ -122,15 +166,22 @@ class FreelancerHash {
         return hash;
     }
 
-    createFactionID = (input) => {
-        const utf8Array = new TextEncoder().encode(input.toLowerCase());
-        let hash = 0xFFF;
+    /**
+     * Creates an ID hash from a specified faction nickname.
+     * Credit goes to Haenlomal for discovering the initial faction Freelancer hash algorithm. I have merely converted it to JS.
+     * @param {string} nickname 
+     * @returns {number}
+     */
+    createFactionID = (nickname) => {
+        if(!nickname)
+            return null;
 
-        for(let i = 0; i < input.length; i++) {
+        const utf8Array = new TextEncoder().encode(nickname.toLowerCase());
+        let hash = 0xFFFF;
+        for(let i = 0; i < nickname.length; i++) {
             let y = (hash & 0xFF00) >>> 8;
-            hash = (y ^ (this.factionLookupTable[(hash & 0x00FF) ^ input[i]])) >>> 0;
+            hash = (y ^ (this.factionLookupTable[(hash & 0x00FF) ^ utf8Array[i]])) >>> 0;
         }
-
         return hash;
     }
 }
