@@ -2,6 +2,7 @@
 import ini from '@nodecraft/ini';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 class FreelancerHash {
     /**
@@ -12,7 +13,7 @@ class FreelancerHash {
     constructor(directory) {
         this.lookupTable = new Array(256);
         this.factionLookupTable = new Array(256);
-        directory ? this.directory = directory : this.directory = process.cwd();
+        directory ? this.directory = directory : this.directory = path.dirname(fileURLToPath(import.meta.url));
         this.hashMap = new Map(); // This is our main data structure that will hold all the nicknames and hashes.
         
         for (let i = 0; i < 256; i++) {
