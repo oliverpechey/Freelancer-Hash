@@ -1,6 +1,6 @@
 {
   "name": "freelancer-hash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A javascript reimplementation of the hashing algorithm discovered by Sherlog in 2003.",
   "type": "module",
   "main": "main.js",
